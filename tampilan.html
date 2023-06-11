@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CRUD Web Service</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.11.2/datatables.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"/>
+    <style>
+        #updateDialog {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>CRUD Web Service</h1>
+
+    <h2>Masukkan</h2>
+    <table id="masukkan" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <th>id_user</th>
+                <th>username</th>
+                <th>isi_komen</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <h2>Add Masukkan</h2>
+    <form id="addForm">
+        <div>
+            <label for="id_user">id_user:</label>
+            <input type="text" id="id_user" name="id_user">
+        </div>
+        <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username">
+        </div>
+        <div>
+            <label for="isi_komen">Isi:</label>
+            <input type="text" id="isi_komen" name="isi_komen">
+        </div>
+        <div>
+            <button type="submit">Add</button>
+        </div>
+    </form>
+
+    <!-- Form Update -->
+    <div id="updateDialog" title="Update Masukkan">
+        <form id="updateForm">
+            <div>
+                <label for="id_user_update">id_user:</label>
+                <input type="text" id="id_user_update" name="id_user_update" readonly>
+            </div>
+            <div>
+                <label for="username_update">Username:</label>
+                <input type="text" id="username_update" name="username_update">
+            </div>
+            <div>
+                <label for="isi_komen_update">Isi:</label>
+                <input type="text" id="isi_komen_update" name="isi_komen_update">
+            </div>
+            <div>
+                <button type="submit">Update</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="https://cdn.datatables.net/v/dt/dt-1.11.2/datatables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/jquery.validation/1.16.0/jquery.validate.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            var masukkan;
+
+            // Initialize DataTables
+            function initDataTable() {
+                masukkan = $('#masukkan').DataTable({
+                    ajax: {
+                        url: 'http://localhost/tubes_web/koneksi.php',
+                        dataSrc: ''
+                    },
+                    columns: [
+                        { data: 'id_user' },
+                        { data: 'username' },
+                        { data: 'isi_komen' },
+                        {
+                            data: null,
+                            render: function (data, type, row) {
+                                return '<button class="deleteButton" data-id_user="' + row.id_user + '">Delete</button>' +
+                                       '<button class="updateButton" data-id_user="' + row.id_user + '">Update</button>';
+                            }
+                        }
+                    ]
+                });
+            }
+
+            // Initialize form validation for add form
+            $('#addForm').validate({
+                rules: {
+                    id_user: 'required',
+                    username: 'required',
+                    isi_komen: 'required'
+                },
+                submitHandler: function(form) {
+                    var formData = $(form).serialize();
+                    $.ajax({
+                        url: 'http://localhost/tubes_web/koneksi.php',
+                        type: 'POST',
+                        data: formData,
+                        success: function(response) {
+                            masukkan.ajax.reload();
+                            form.reset();
+                        },
+                        error: function(xhr, status, error) {
+                            console.error(xhr.responseText);
+                        }
+                    });
+                }
+            });
+
+            // Open the update dialog on update button click
+            $('#masukkan').on('click', '.updateButton', function() {
+                var id_user = $(this).data('id_user');
+                var rowData = masukkan.row($(this).closest('tr')).data();
+                $('#id_user_update').val(rowData.id_user);
+                $('#username_update').val(rowData.username);
+                $('#isi_komen_update').val(rowData.isi_komen);
+                $('#updateDialog').dialog('open');
+            });
+
+            // Initialize the update dialog
+            $('#updateDialog').dialog({
+                autoOpen: false,
+                width: 400,
+                buttons: {
+                    "Update": function() {
+                        $('#updateForm').submit();
+                    },
+                    "Cancel": function() {
+                        $(this).dialog('close');
+                    }
+                }
+            });
+
+            // Initialize form validation for update form
+            $('#updateForm').validate({
+                rules: {
+                    username_update: 'required',
+                    isi_komen_update: 'required'
+                },
+                submitHandler: function(form) {
+                    var formData = $(form).serialize();
+                    var id_user = $('#id_user_update').val();
+                    $.ajax({
+                        url: 'http://localhost/tubes_web/koneksi.php?id_user=' + id_user,
+                        type: 'PUT',
+                        data: formData,
+                        success: function(response) {
+                            masukkan.ajax.reload();
+                            $('#updateDialog').dialog('close');
+                        },
+                        error: function(xhr, status, error) {
+                            console.error(xhr.responseText);
+                        }
+                    });
+                }
+            });
+
+            // Open the delete confirmation dialog on delete button click
+            $('#masukkan').on('click', '.deleteButton', function() {
+                var id_user = $(this).data('id_user');
+                var row = $(this).closest('tr');
+                if (confirm('Are you sure you want to delete this?')) {
+                    $.ajax({
+                        url: 'http://localhost/tubes_web/koneksi.php?id_user=' + id_user,
+                        type: 'DELETE',
+                        success: function(response) {
+                            masukkan.row(row).remove().draw(false);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error(xhr.responseText);
+                        }
+                    });
+                }
+            });
+
+            // Initialize DataTables after document is ready
+            initDataTable();
+        });
+    </script>
+</body>
+</html>
